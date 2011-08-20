@@ -80,6 +80,7 @@ class Blocks(object):
             (2, 206, 32, 32), (36, 206, 32, 32)))
 
 class Map(object):
+    blocking = set('*')
 
     def __init__(self):
         with open('map.txt') as f:
@@ -97,15 +98,38 @@ class Map(object):
                     screen.blit(self.blocks.rock[0], (x*32, 480-(y+1)*32))
 
     def collision(self, sprite):
-        # Check for left/right collision
+        # Check for head collision
+        y = self.screen_y + (480-sprite.rect.top)/32
+        x = self.screen_x + sprite.rect.centerx/32
+        if sprite.jumping == True:
+            if self.data[y][x] in self.blocking:
+                sprite.jump_ticks = 0
+                return True
+        # Check falling collision
         y = self.screen_y + (480-sprite.rect.bottom)/32
+        if sprite.jumping == True:
+            if self.data[y][x] in self.blocking:
+                sprite.jumping = False
+                sprite.rect.bottom -= 2
+                if sprite.images is None:
+                    sprite.stop()
+                return True
+        else:
+            if self.data[y-1][x] not in self.blocking:
+                sprite.jumping = True
+                sprite.jump_ticks = 0
+        # Check for left/right collision
         if sprite.direction == RIGHT:
-            x = self.screen_x + sprite.rect.right/32
-            if self.data[y][x] != ' ' or self.data[y+1][x] != ' ':
+            x = self.screen_x + (sprite.rect.right)/32
+            if ((self.data[y][x] in self.blocking) or
+                    (self.data[y+1][x] in self.blocking)):
+                #print (x,y)
                 return True
         if sprite.direction == LEFT:
-            x = self.screen_x + sprite.rect.left/32
-            if self.data[y][x] != ' ' or self.data[y+1][x] != ' ':
+            x = self.screen_x + (sprite.rect.left)/32
+            if ((self.data[y][x] in self.blocking) or
+                    (self.data[y+1][x] in self.blocking)):
+                #print (x,y)
                 return True
         return False
 
@@ -123,6 +147,8 @@ class Player(pygame.sprite.Sprite):
             (259, 143, 48, 64)), -1)
         self.running_left = [
             pygame.transform.flip(s, True, False) for s in self.running_right]
+        self.jumping_right = self.running_right[0]
+        self.jumping_left = self.running_left[0]
         self.frame = 0
 
         self.images = None
@@ -130,8 +156,10 @@ class Player(pygame.sprite.Sprite):
         self.direction = RIGHT
         self.movement = 2
         self.rect = pygame.Rect(0, 352, 48, 64)
-        self.ticks = 50         # Ticks between animation change
+        self.ticks = 60         # Ticks between animation change
         self.last_frame = 0     # ticks since last frame
+        self.jumping = False
+        self.blocked = False
 
     def update(self, t):
         if self.images:
@@ -141,11 +169,18 @@ class Player(pygame.sprite.Sprite):
                 if self.frame >= len(self.images):
                     self.frame = 0
                 self.last_frame = 0
-            if self.direction == RIGHT:
-                self.rect.left += self.movement
-            elif self.direction == LEFT:
-                self.rect.left -= self.movement
+            if not self.blocked:
+                if self.direction == RIGHT:
+                    self.rect.left += self.movement
+                elif self.direction == LEFT:
+                    self.rect.left -= self.movement
             self.image = self.images[self.frame]
+        if self.jumping:
+            if self.jump_ticks > 0:
+                self.rect.top -= self.movement
+                self.jump_ticks -= 1
+            else:
+                self.rect.top += self.movement
 
     def run_right(self):
         self.direction = RIGHT
@@ -163,6 +198,15 @@ class Player(pygame.sprite.Sprite):
             self.image = self.standing_right
         elif self.direction == LEFT:
             self.image = self.standing_left
+
+    def jump(self):
+        self.jumping = True
+        self.jump_ticks = 40
+        if self.direction == RIGHT:
+            self.image = self.jumping_right
+        elif self.direction == LEFT:
+            self.image = self.jumping_left
+
 
 def quit():
     pygame.quit()
@@ -189,6 +233,9 @@ while True:
                 player.run_left()
             elif event.key == K_RIGHT:
                 player.run_right()
+            elif event.key == K_SPACE:
+                if not player.jumping:
+                    player.jump()
         if event.type == KEYUP:
             if event.key == K_LEFT:
                 if player.direction == LEFT:
@@ -197,8 +244,7 @@ while True:
                 if player.direction == RIGHT:
                     player.stop()
 
-    if game_map.collision(player):
-        player.stop()
+    player.blocked = game_map.collision(player)
     allsprites.clear(screen, clear_screen)
     game_map.render(screen)
     allsprites.update(t)
