@@ -85,8 +85,10 @@ class Map(object):
             self.data = list(reversed(f.readlines()))
         self.screen_w = 20
         self.screen_h = 15
-        self.screen_x = 0
+        self.screen_x = 5
         self.screen_y = 0
+        self.offset_x = 8
+        self.offset_y = 0
         self.blocks = Blocks()
         self.block_map = {
             '*' : self.blocks.rock[0],
@@ -96,9 +98,9 @@ class Map(object):
         self.blocking = set(self.block_map.keys())
 
     def render(self, screen):
-        for y in range(self.screen_y, self.screen_y+self.screen_h+1):
-            for x in range(self.screen_x, self.screen_x+self.screen_w+1):
-                block = self.data[y][x]
+        for y in range(self.screen_h+1):
+            for x in range(self.screen_w+1):
+                block = self.data[y+self.screen_y][x+self.screen_x]
                 if block in self.blocking:
                     screen.blit(self.block_map[block], (x*32, 480-(y+1)*32))
 
@@ -142,7 +144,7 @@ class Map(object):
         for y in range(self.screen_y, self.screen_y+self.screen_h+1):
             x = self.data[y].find('@')
             if x > 0:
-                return x, y
+                return x - self.screen_x, y - self.screen_y
 
 class Player(pygame.sprite.Sprite):
 
