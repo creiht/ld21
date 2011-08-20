@@ -33,6 +33,10 @@ clock = pygame.time.Clock()
 
 graphics_path = './media/graphics/spritelib_gpl/platform/'
 
+LEFT = 0
+RIGHT = 1
+
+
 class Spritesheet(object):
     """Adapted from: http://pygame.org/wiki/Spritesheet"""
     def __init__(self, filename):
@@ -83,20 +87,44 @@ class Player(pygame.sprite.Sprite):
             pygame.transform.flip(s, True, False) for s in self.running_right]
         self.frame = 0
 
-        self.images = self.running_right
+        self.images = None
+        self.image = self.standing_right
+        self.current_dir = RIGHT
+        self.movement = 2
         self.rect = pygame.Rect(0, 0, 48, 64)
-        self.ticks = 50
-        self._last_frame = 0
+        self.ticks = 50         # Ticks between animation change
+        self.last_frame = 0     # ticks since last frame
 
     def update(self, t):
-        self._last_frame += t
-        if self._last_frame > self.ticks:
-            self.frame += 1
-            if self.frame >= len(self.images):
-                self.frame = 0
-            self._last_frame = 0
-        self.image = self.images[self.frame]
+        if self.images:
+            self.last_frame += t
+            if self.last_frame > self.ticks:
+                self.frame += 1
+                if self.frame >= len(self.images):
+                    self.frame = 0
+                self.last_frame = 0
+            if self.current_dir == RIGHT:
+                self.rect.left += self.movement
+            elif self.current_dir == LEFT:
+                self.rect.left -= self.movement
+            self.image = self.images[self.frame]
 
+    def run_right(self):
+        self.current_dir = RIGHT
+        player.images = player.running_right
+        player.frame = 0
+
+    def run_left(self):
+        self.current_dir = LEFT
+        player.images = player.running_left
+        player.frame = 0
+
+    def stop(self):
+        self.images = None
+        if self.current_dir == RIGHT:
+            self.image = self.standing_right
+        elif self.current_dir == LEFT:
+            self.image = self.standing_left
 
 def quit():
     pygame.quit()
@@ -111,20 +139,26 @@ allsprites = pygame.sprite.RenderUpdates(player)
 while True:
     t = clock.tick(60)
     for event in pygame.event.get():
-        print event
+        if event.type != MOUSEMOTION:
+            print event
         if event.type == QUIT:
             quit()
         if event.type == KEYDOWN:
             if event.key == K_ESCAPE:
                 quit()
             elif event.key == K_LEFT:
-                player.images = player.running_left
-                player.frame = 0
+                player.run_left()
             elif event.key == K_RIGHT:
-                player.images = player.running_right
-                player.frame = 0
+                player.run_right()
+        if event.type == KEYUP:
+            if event.key == K_LEFT:
+                if player.current_dir == LEFT:
+                    player.stop()
+            elif event.key == K_RIGHT:
+                if player.current_dir == RIGHT:
+                    player.stop()
 
     allsprites.clear(screen, clear_screen)
     allsprites.update(t)
     dirty = allsprites.draw(screen)
-    pygame.display.update(dirty)
+    pygame.display.flip()
