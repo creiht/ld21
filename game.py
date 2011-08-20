@@ -21,6 +21,7 @@
 import os
 import sys
 import time
+import random
 
 import pygame
 from pygame.locals import *
@@ -37,7 +38,7 @@ LEFT = 0
 RIGHT = 1
 
 
-class Spritesheet(object):
+class SpriteSheet(object):
     """Adapted from: http://pygame.org/wiki/Spritesheet"""
     def __init__(self, filename):
         try:
@@ -70,12 +71,18 @@ class Spritesheet(object):
                 for x in range(image_count)]
         return self.images_at(tups, colorkey)
 
+class Blocks(object):
+
+    def __init__(self):
+        self.sheet = SpriteSheet(graphics_path + 'blocks1.png')
+        self.rock = self.sheet.images_at((
+            (2, 206, 32, 32), (36, 206, 32, 32)))
 
 class Player(pygame.sprite.Sprite):
 
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
-        self.sheet = Spritesheet(graphics_path + 'char4.png')
+        self.sheet = SpriteSheet(graphics_path + 'char4.png')
         self.standing_right = self.sheet.image_at((395, 143, 48, 64), -1)
         self.standing_left = pygame.transform.flip(
                 self.standing_right, True, False)
@@ -91,7 +98,7 @@ class Player(pygame.sprite.Sprite):
         self.image = self.standing_right
         self.current_dir = RIGHT
         self.movement = 2
-        self.rect = pygame.Rect(0, 0, 48, 64)
+        self.rect = pygame.Rect(0, 384, 48, 64)
         self.ticks = 50         # Ticks between animation change
         self.last_frame = 0     # ticks since last frame
 
@@ -132,8 +139,11 @@ def quit():
 
 def clear_screen(surf, rect):
     surf.fill((0, 0, 0), rect)
+    for n in xrange(20):
+        surf.blit(blocks.rock[0], (n*32, 448))
 
 player = Player()
+blocks = Blocks()
 allsprites = pygame.sprite.RenderUpdates(player)
 
 while True:
