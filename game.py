@@ -71,12 +71,43 @@ class SpriteSheet(object):
                 for x in range(image_count)]
         return self.images_at(tups, colorkey)
 
+
 class Blocks(object):
 
     def __init__(self):
         self.sheet = SpriteSheet(graphics_path + 'blocks1.png')
         self.rock = self.sheet.images_at((
             (2, 206, 32, 32), (36, 206, 32, 32)))
+
+class Map(object):
+
+    def __init__(self):
+        with open('map.txt') as f:
+            self.data = list(reversed(f.readlines()))
+        self.screen_w = 20
+        self.screen_h = 15
+        self.screen_x = 0
+        self.screen_y = 0
+        self.blocks = Blocks()
+
+    def render(self, screen):
+        for y in range(self.screen_y, self.screen_y+self.screen_h+1):
+            for x in range(self.screen_x, self.screen_x+self.screen_w+1):
+                if self.data[y][x] == '*':
+                    screen.blit(self.blocks.rock[0], (x*32, 480-(y+1)*32))
+
+    def collision(self, sprite):
+        # Check for left/right collision
+        y = self.screen_y + (480-sprite.rect.bottom)/32
+        if sprite.direction == RIGHT:
+            x = self.screen_x + sprite.rect.right/32
+            if self.data[y][x] != ' ' or self.data[y+1][x] != ' ':
+                return True
+        if sprite.direction == LEFT:
+            x = self.screen_x + sprite.rect.left/32
+            if self.data[y][x] != ' ' or self.data[y+1][x] != ' ':
+                return True
+        return False
 
 class Player(pygame.sprite.Sprite):
 
@@ -96,9 +127,9 @@ class Player(pygame.sprite.Sprite):
 
         self.images = None
         self.image = self.standing_right
-        self.current_dir = RIGHT
+        self.direction = RIGHT
         self.movement = 2
-        self.rect = pygame.Rect(0, 384, 48, 64)
+        self.rect = pygame.Rect(0, 352, 48, 64)
         self.ticks = 50         # Ticks between animation change
         self.last_frame = 0     # ticks since last frame
 
@@ -110,27 +141,27 @@ class Player(pygame.sprite.Sprite):
                 if self.frame >= len(self.images):
                     self.frame = 0
                 self.last_frame = 0
-            if self.current_dir == RIGHT:
+            if self.direction == RIGHT:
                 self.rect.left += self.movement
-            elif self.current_dir == LEFT:
+            elif self.direction == LEFT:
                 self.rect.left -= self.movement
             self.image = self.images[self.frame]
 
     def run_right(self):
-        self.current_dir = RIGHT
+        self.direction = RIGHT
         player.images = player.running_right
         player.frame = 0
 
     def run_left(self):
-        self.current_dir = LEFT
+        self.direction = LEFT
         player.images = player.running_left
         player.frame = 0
 
     def stop(self):
         self.images = None
-        if self.current_dir == RIGHT:
+        if self.direction == RIGHT:
             self.image = self.standing_right
-        elif self.current_dir == LEFT:
+        elif self.direction == LEFT:
             self.image = self.standing_left
 
 def quit():
@@ -139,11 +170,9 @@ def quit():
 
 def clear_screen(surf, rect):
     surf.fill((0, 0, 0), rect)
-    for n in xrange(20):
-        surf.blit(blocks.rock[0], (n*32, 448))
 
 player = Player()
-blocks = Blocks()
+game_map = Map()
 allsprites = pygame.sprite.RenderUpdates(player)
 
 while True:
@@ -162,13 +191,16 @@ while True:
                 player.run_right()
         if event.type == KEYUP:
             if event.key == K_LEFT:
-                if player.current_dir == LEFT:
+                if player.direction == LEFT:
                     player.stop()
             elif event.key == K_RIGHT:
-                if player.current_dir == RIGHT:
+                if player.direction == RIGHT:
                     player.stop()
 
+    if game_map.collision(player):
+        player.stop()
     allsprites.clear(screen, clear_screen)
+    game_map.render(screen)
     allsprites.update(t)
     dirty = allsprites.draw(screen)
     pygame.display.flip()
