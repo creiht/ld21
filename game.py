@@ -67,10 +67,10 @@ class Spritesheet(object):
         return self.images_at(tups, colorkey)
 
 
-class Player(object):
-    def __init__(self, screen):
-        self.screen = screen
-        self.pos = (0, 0)
+class Player(pygame.sprite.Sprite):
+
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
         self.sheet = Spritesheet(graphics_path + 'char4.png')
         self.standing_right = self.sheet.image_at((395, 143, 48, 64), -1)
         self.standing_left = pygame.transform.flip(
@@ -81,24 +81,35 @@ class Player(object):
             (259, 143, 48, 64)), -1)
         self.running_left = [
             pygame.transform.flip(s, True, False) for s in self.running_right]
-        self.current = self.running_right
-        self.current_frame = 0
+        self.frame = 0
 
-    def draw(self):
-        self.screen.blit(self.current[self.current_frame], self.pos)
-        self.current_frame += 1
-        if self.current_frame >= len(self.current):
-            self.current_frame = 0
+        self.images = self.running_right
+        self.rect = pygame.Rect(0, 0, 48, 64)
+        self.ticks = 50
+        self._last_frame = 0
+
+    def update(self, t):
+        self._last_frame += t
+        if self._last_frame > self.ticks:
+            self.frame += 1
+            if self.frame >= len(self.images):
+                self.frame = 0
+            self._last_frame = 0
+        self.image = self.images[self.frame]
 
 
 def quit():
     pygame.quit()
     sys.exit()
 
-player = Player(screen)
+def clear_screen(surf, rect):
+    surf.fill((0, 0, 0), rect)
+
+player = Player()
+allsprites = pygame.sprite.RenderUpdates(player)
 
 while True:
-    t = clock.tick(10) / 1000.0
+    t = clock.tick(60)
     for event in pygame.event.get():
         print event
         if event.type == QUIT:
@@ -107,19 +118,13 @@ while True:
             if event.key == K_ESCAPE:
                 quit()
             elif event.key == K_LEFT:
-                player.current = player.running_left
-                player.current_frame = 0
-                #player.current_frame -= 1
-                #if player.current_frame <= 0:
-                #    player.current_frame = len(player.current)-1
+                player.images = player.running_left
+                player.frame = 0
             elif event.key == K_RIGHT:
-                player.current = player.running_right
-                player.current_frame = 0
-                #player.current_frame += 1
-                #if player.current_frame >= len(player.current):
-                #    player.current_frame = 0
+                player.images = player.running_right
+                player.frame = 0
 
-
-    screen.fill((0, 0, 0))
-    player.draw()
-    pygame.display.flip()
+    allsprites.clear(screen, clear_screen)
+    allsprites.update(t)
+    dirty = allsprites.draw(screen)
+    pygame.display.update(dirty)
