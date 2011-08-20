@@ -77,11 +77,9 @@ class Blocks(object):
     def __init__(self):
         self.sheet = SpriteSheet(graphics_path + 'blocks1.png')
         self.rock = self.sheet.images_at((
-            (2, 206, 32, 32), (36, 206, 32, 32)))
+            (2, 206, 32, 32), (36, 206, 32, 32), (308, 240, 32, 32)))
 
 class Map(object):
-    blocking = set('*')
-
     def __init__(self):
         with open('map.txt') as f:
             self.data = list(reversed(f.readlines()))
@@ -90,12 +88,19 @@ class Map(object):
         self.screen_x = 0
         self.screen_y = 0
         self.blocks = Blocks()
+        self.block_map = {
+            '*' : self.blocks.rock[0],
+            '#' : self.blocks.rock[1],
+            '%' : self.blocks.rock[2],
+        }
+        self.blocking = set(self.block_map.keys())
 
     def render(self, screen):
         for y in range(self.screen_y, self.screen_y+self.screen_h+1):
             for x in range(self.screen_x, self.screen_x+self.screen_w+1):
-                if self.data[y][x] == '*':
-                    screen.blit(self.blocks.rock[0], (x*32, 480-(y+1)*32))
+                block = self.data[y][x]
+                if block in self.blocking:
+                    screen.blit(self.block_map[block], (x*32, 480-(y+1)*32))
 
     def collision(self, sprite):
         # Check for head collision
@@ -133,6 +138,12 @@ class Map(object):
                 return True
         return False
 
+    def get_start(self):
+        for y in range(self.screen_y, self.screen_y+self.screen_h+1):
+            x = self.data[y].find('@')
+            if x > 0:
+                return x, y
+
 class Player(pygame.sprite.Sprite):
 
     def __init__(self):
@@ -160,6 +171,10 @@ class Player(pygame.sprite.Sprite):
         self.last_frame = 0     # ticks since last frame
         self.jumping = False
         self.blocked = False
+
+    def set_pos(self, x, y):
+        self.rect.bottom = 480-y*32
+        self.rect.left = x*32
 
     def update(self, t):
         if self.images:
@@ -217,6 +232,7 @@ def clear_screen(surf, rect):
 
 player = Player()
 game_map = Map()
+player.set_pos(*game_map.get_start())
 allsprites = pygame.sprite.RenderUpdates(player)
 
 while True:
